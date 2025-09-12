@@ -1,0 +1,48 @@
+name: flutter_application_1
+description: "A new Flutter project."
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.9.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  provider: ^6.1.5+1
+  shared_preferences: ^2.5.3
+  uuid: ^4.5.1
+  intl: ^0.20.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+  # Launcher-Icons Generator
+  flutter_launcher_icons: ^0.13.1
+
+# Konfiguration für flutter_launcher_icons (Root-Ebene!)
+flutter_launcher_icons:
+  android: true
+  ios: true
+
+  # Gemeinsames Icon (PNG, 1024x1024, ohne abgerundete Ecken)
+  image_path: assets/Favicon2.png
+
+  # Android Adaptive Icon (empfohlen)
+  adaptive_icon_background: "#0A3C92"      # oder: assets/icon_bg.png
+  adaptive_icon_foreground: assets/Favicon2.png
+  adaptive_icon_monochrome: assets/Favicon2.png   # optional (Android 13+)
+
+  # iOS: Entfernt Transparenz automatisch (falls vorhanden)
+  remove_alpha_ios: true
+
+flutter:
+  uses-material-design: true
+
+  # Optional: Icon-Datei auch als Asset verfügbar machen (praktisch, falls im UI gebraucht)
+  assets:
+    - assets/Favicon2.png
