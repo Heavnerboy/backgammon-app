@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../state/app_state.dart';
 import '../models/models.dart';
 import '../widgets/avatar_with_name.dart';
+import '../state/theme_provider.dart';
 
 class StatsScreen extends StatefulWidget {
   const StatsScreen({super.key});
@@ -15,10 +16,13 @@ class _StatsScreenState extends State<StatsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final state   = context.watch<AppState>();
-    final scheme  = Theme.of(context).colorScheme;
-    final text    = Theme.of(context).textTheme;
+    final state     = context.watch<AppState>();
+    final scheme    = Theme.of(context).colorScheme;
+    final text      = Theme.of(context).textTheme;
     final opponents = state.opponents;
+
+    // Theme-Status
+    final isDark = context.watch<ThemeProvider>().themeMode == ThemeMode.dark;
 
     // Sessions nach Gegner filtern (null => alle)
     final sessions = (_selectedOpponentId == null)
@@ -94,7 +98,7 @@ class _StatsScreenState extends State<StatsScreen> {
     return Scaffold(
       body: CustomScrollView(
         slivers: [
-          // 🔹 Oberer Header identisch zu anderen Screens (SliverAppBar)
+          // 🔹 Header mit Toggle
           SliverAppBar(
             pinned: true,
             backgroundColor: scheme.secondaryContainer,
@@ -106,17 +110,26 @@ class _StatsScreenState extends State<StatsScreen> {
               'Statistiken',
               style: text.headlineSmall?.copyWith(color: scheme.onSecondaryContainer),
             ),
+            actions: [
+              Padding(
+                padding: const EdgeInsets.only(right: 12, bottom: 6),
+                child: _ThemeModeToggle(
+                  isDark: isDark,
+                  onToggle: () => context.read<ThemeProvider>().toggleTheme(),
+                ),
+              ),
+            ],
           ),
 
-          // 🔹 Sticky 2: VS-Bar + Gegnerauswahl (bleibt beim Scrollen)
+          // 🔹 Sticky 2: VS-Bar + Gegnerauswahl (leicht kompakter)
           SliverPersistentHeader(
             pinned: true,
             delegate: _StickyHeader(
-              minHeight: 156,
+              minHeight: 156, // vorher 156
               maxHeight: 156,
               child: Container(
                 color: scheme.surface,
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 12), // kompakter
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.start,
                   children: [
@@ -144,7 +157,7 @@ class _StatsScreenState extends State<StatsScreen> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 8), // vorher 12
                     DropdownButtonFormField<String?>(
                       value: _selectedOpponentId,
                       decoration: const InputDecoration(labelText: 'Gegner'),
@@ -168,7 +181,7 @@ class _StatsScreenState extends State<StatsScreen> {
           // 🔹 Inhalt
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16), // top vorher 16 → 8
               child: Column(
                 children: [
                   // KPI-Grid
@@ -288,7 +301,7 @@ class _StickyHeader extends SliverPersistentHeaderDelegate {
       elevation: overlapsContent ? 1 : 0,
       child: SizedBox.expand(child: child),
     );
-  }
+    }
 
   @override
   bool shouldRebuild(covariant _StickyHeader old) =>
@@ -574,6 +587,140 @@ class _Legend extends StatelessWidget {
             ),
           )
           .toList(),
+    );
+  }
+}
+
+/// Stylischer, animierter Theme-Toggle (Sun/Moon + gleitender Knopf)
+class _ThemeModeToggle extends StatefulWidget {
+  final bool isDark;
+  final VoidCallback onToggle;
+  const _ThemeModeToggle({
+    required this.isDark,
+    required this.onToggle,
+  });
+
+  @override
+  State<_ThemeModeToggle> createState() => _ThemeModeToggleState();
+}
+
+class _ThemeModeToggleState extends State<_ThemeModeToggle>
+    with SingleTickerProviderStateMixin {
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final bool isDark = widget.isDark;
+
+    // Größen
+    const double width = 64;
+    const double height = 34;
+    const double padding = 4;
+    const double knob = height - padding * 2;
+
+    return Semantics(
+      label: 'Theme umschalten',
+      value: isDark ? 'Darkmode aktiv' : 'Lightmode aktiv',
+      button: true,
+      child: GestureDetector(
+        onTap: widget.onToggle,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 240),
+          curve: Curves.easeOutCubic,
+          width: width,
+          height: height,
+          padding: const EdgeInsets.all(padding),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(height),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: isDark
+                  ? [
+                      scheme.primaryContainer.withOpacity(0.25),
+                      scheme.primary.withOpacity(0.35),
+                    ]
+                  : [
+                      scheme.tertiaryContainer.withOpacity(0.5),
+                      scheme.surfaceContainerHighest.withOpacity(0.9),
+                    ],
+            ),
+            border: Border.all(
+              color: isDark ? scheme.primary.withOpacity(0.4) : scheme.outlineVariant,
+            ),
+            boxShadow: [
+              BoxShadow(
+                blurRadius: 10,
+                spreadRadius: 0,
+                offset: const Offset(0, 4),
+                color: Colors.black.withOpacity(isDark ? 0.25 : 0.12),
+              ),
+            ],
+          ),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 8),
+                  child: Icon(
+                    Icons.wb_sunny_rounded,
+                    size: 16,
+                    color: isDark
+                        ? scheme.onSurface.withOpacity(0.35)
+                        : scheme.onSurface.withOpacity(0.9),
+                  ),
+                ),
+              ),
+              Align(
+                alignment: Alignment.centerRight,
+                child: Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: Icon(
+                    Icons.nights_stay_rounded,
+                    size: 16,
+                    color: isDark
+                        ? scheme.onSurface.withOpacity(0.9)
+                        : scheme.onSurface.withOpacity(0.35),
+                  ),
+                ),
+              ),
+              AnimatedAlign(
+                duration: const Duration(milliseconds: 240),
+                curve: Curves.easeOutCubic,
+                alignment: isDark ? Alignment.centerRight : Alignment.centerLeft,
+                child: Container(
+                  width: knob,
+                  height: knob,
+                  decoration: BoxDecoration(
+                    color: scheme.surface,
+                    borderRadius: BorderRadius.circular(knob / 2),
+                    boxShadow: [
+                      BoxShadow(
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                        color: Colors.black.withOpacity(0.25),
+                      ),
+                    ],
+                    border: Border.all(color: scheme.outlineVariant),
+                  ),
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 180),
+                    switchInCurve: Curves.easeOut,
+                    switchOutCurve: Curves.easeIn,
+                    child: Icon(
+                      isDark ? Icons.dark_mode : Icons.light_mode,
+                      key: ValueKey(isDark),
+                      size: 16,
+                      color: scheme.primary,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

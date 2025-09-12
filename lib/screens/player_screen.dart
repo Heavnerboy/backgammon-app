@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../state/app_state.dart';
 import '../widgets/avatar_picker.dart';
+import '../state/theme_provider.dart';
 
 class PlayersScreen extends StatefulWidget {
   const PlayersScreen({super.key});
@@ -25,6 +26,10 @@ class _PlayersScreenState extends State<PlayersScreen> {
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
+    // Theme-Status
+    final themeProvider = context.watch<ThemeProvider>();
+    final isDark = themeProvider.themeMode == ThemeMode.dark;
+
     // Profil laden (einmalig in TextField übernehmen)
     final savedUser = state.user;
     if (savedUser != null && _meNameCtrl.text.isEmpty) {
@@ -44,6 +49,16 @@ class _PlayersScreenState extends State<PlayersScreen> {
         foregroundColor: scheme.onSecondaryContainer,
         elevation: 0,
         title: Text('Spieler', style: textTheme.headlineSmall?.copyWith(color: scheme.onSecondaryContainer)),
+        actions: [
+          Padding(
+            // leicht nach oben/unten justieren, damit nichts „abgeschnitten“ wirkt
+            padding: const EdgeInsets.only(right: 12, bottom: 6),
+            child: _ThemeModeToggle(
+              isDark: isDark,
+              onToggle: () => context.read<ThemeProvider>().toggleTheme(),
+            ),
+          ),
+        ],
       ),
 
       body: ListView(
@@ -165,18 +180,12 @@ class _PlayersScreenState extends State<PlayersScreen> {
                           initialName: o.name,
                           initialAvatar: o.avatar,
                           onSaved: (name, avatar) {
-                            // ❗Workaround, falls es noch kein updateOpponent gibt:
-                            // Löschen + neu anlegen (ID ändert sich; Sessions bleiben aber erhalten,
-                            // wenn du sie über opponentId verknüpfst – prüfe dein Datenmodell).
-                            // Besser: eigene AppState.updateOpponent implementieren.
+                            // TODO: Wenn vorhanden, lieber AppState.updateOpponent(...) verwenden
                             try {
-                              // Wenn du mittlerweile updateOpponent hast, nimm diese Zeile:
-                              // context.read<AppState>().updateOpponent(o.id, name.trim(), avatar);
-                              // Und entferne die 2 folgenden Zeilen.
                               context.read<AppState>().removeOpponent(o.id);
                               context.read<AppState>().addOpponent(name.trim().isEmpty ? 'Gegner' : name.trim(), avatar);
                             } catch (_) {
-                              // Falls updateOpponent existiert und preferred ist, kannst du hier umstellen.
+                              // falls du bereits ein echtes update hast, stelle hier um
                             }
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(content: Text('„${name.trim().isEmpty ? 'Gegner' : name.trim()}“ aktualisiert')),
@@ -367,6 +376,140 @@ class _PlayersScreenState extends State<PlayersScreen> {
               label: const Text('Speichern'),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Stylischer, animierter Theme-Toggle (Sun/Moon + gleitender Knopf)
+class _ThemeModeToggle extends StatefulWidget {
+  final bool isDark;
+  final VoidCallback onToggle;
+  const _ThemeModeToggle({
+    required this.isDark,
+    required this.onToggle,
+  });
+
+  @override
+  State<_ThemeModeToggle> createState() => _ThemeModeToggleState();
+}
+
+class _ThemeModeToggleState extends State<_ThemeModeToggle>
+    with SingleTickerProviderStateMixin {
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final bool isDark = widget.isDark;
+
+    // Größen
+    const double width = 64;
+    const double height = 34;
+    const double padding = 4;
+    const double knob = height - padding * 2;
+
+    return Semantics(
+      label: 'Theme umschalten',
+      value: isDark ? 'Darkmode aktiv' : 'Lightmode aktiv',
+      button: true,
+      child: GestureDetector(
+        onTap: widget.onToggle,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 240),
+          curve: Curves.easeOutCubic,
+          width: width,
+          height: height,
+          padding: const EdgeInsets.all(padding),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(height),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: isDark
+                  ? [
+                      scheme.primaryContainer.withOpacity(0.25),
+                      scheme.primary.withOpacity(0.35),
+                    ]
+                  : [
+                      scheme.tertiaryContainer.withOpacity(0.5),
+                      scheme.surfaceContainerHighest.withOpacity(0.9),
+                    ],
+            ),
+            border: Border.all(
+              color: isDark ? scheme.primary.withOpacity(0.4) : scheme.outlineVariant,
+            ),
+            boxShadow: [
+              BoxShadow(
+                blurRadius: 10,
+                spreadRadius: 0,
+                offset: const Offset(0, 4),
+                color: Colors.black.withOpacity(isDark ? 0.25 : 0.12),
+              ),
+            ],
+          ),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 8),
+                  child: Icon(
+                    Icons.wb_sunny_rounded,
+                    size: 16,
+                    color: isDark
+                        ? scheme.onSurface.withOpacity(0.35)
+                        : scheme.onSurface.withOpacity(0.9),
+                  ),
+                ),
+              ),
+              Align(
+                alignment: Alignment.centerRight,
+                child: Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: Icon(
+                    Icons.nights_stay_rounded,
+                    size: 16,
+                    color: isDark
+                        ? scheme.onSurface.withOpacity(0.9)
+                        : scheme.onSurface.withOpacity(0.35),
+                  ),
+                ),
+              ),
+              AnimatedAlign(
+                duration: const Duration(milliseconds: 240),
+                curve: Curves.easeOutCubic,
+                alignment: isDark ? Alignment.centerRight : Alignment.centerLeft,
+                child: Container(
+                  width: knob,
+                  height: knob,
+                  decoration: BoxDecoration(
+                    color: scheme.surface,
+                    borderRadius: BorderRadius.circular(knob / 2),
+                    boxShadow: [
+                      BoxShadow(
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                        color: Colors.black.withOpacity(0.25),
+                      ),
+                    ],
+                    border: Border.all(color: scheme.outlineVariant),
+                  ),
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 180),
+                    switchInCurve: Curves.easeOut,
+                    switchOutCurve: Curves.easeIn,
+                    child: Icon(
+                      isDark ? Icons.dark_mode : Icons.light_mode,
+                      key: ValueKey(isDark),
+                      size: 16,
+                      color: scheme.primary,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
