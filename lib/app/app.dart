@@ -15,21 +15,29 @@ class _BackgammonAppState extends State<BackgammonApp> {
   int _index = 0;
   bool _ready = false;
 
-  final _screens = const [HomeScreen(), SessionsScreen(), PlayersScreen(), StatsScreen()];
-
   @override
   Widget build(BuildContext context) {
+    final pages = <Widget>[
+      HomeScreen(onStartNewSession: () => setState(() => _index = 1)), // ← Tab-Wechsel
+      const SessionsScreen(),
+      const PlayersScreen(),
+      const StatsScreen(),
+    ];
+
     return MaterialApp(
       title: 'Backgammon Scores',
       theme: ThemeData(colorSchemeSeed: Colors.indigo, useMaterial3: true),
       home: _ready
           ? Scaffold(
-              body: _screens[_index],
+              body: IndexedStack( // ← hält Zustand und verhindert Overlay-Routen für Tabs
+                index: _index,
+                children: pages,
+              ),
               bottomNavigationBar: NavigationBar(
                 selectedIndex: _index,
                 destinations: const [
                   NavigationDestination(icon: Icon(Icons.home), label: 'Home'),
-                  NavigationDestination(icon: Icon(Icons.event_note), label: 'Sessions'),
+                NavigationDestination(icon: Icon(Icons.event_note), label: 'Sessions'),
                   NavigationDestination(icon: Icon(Icons.people), label: 'Spieler'),
                   NavigationDestination(icon: Icon(Icons.show_chart), label: 'Stats'),
                 ],

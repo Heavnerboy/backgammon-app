@@ -4,9 +4,6 @@ import '../state/app_state.dart';
 import '../models/models.dart';
 import '../widgets/avatar_with_name.dart';
 
-// Gleiches Grau wie Navigation/Home/Sessions/Players
-const kChromeBg = Color(0xFFF2F3F5);
-
 class StatsScreen extends StatefulWidget {
   const StatsScreen({super.key});
   @override
@@ -18,7 +15,9 @@ class _StatsScreenState extends State<StatsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final state = context.watch<AppState>();
+    final state   = context.watch<AppState>();
+    final scheme  = Theme.of(context).colorScheme;
+    final text    = Theme.of(context).textTheme;
     final opponents = state.opponents;
 
     // Sessions nach Gegner filtern (null => alle)
@@ -33,18 +32,18 @@ class _StatsScreenState extends State<StatsScreen> {
     }
     games.sort((a, b) => a.timestamp.compareTo(b.timestamp)); // chronologisch
 
-    // Namen (werden in KPIs/Tabelle genutzt)
+    // Namen
     final myName = state.user?.name ?? 'Ich';
     final Opponent? opp = (_selectedOpponentId == null)
         ? null
         : (() {
-            final match = opponents.where((o) => o.id == _selectedOpponentId);
-            return match.isNotEmpty ? match.first : null;
+            final m = opponents.where((o) => o.id == _selectedOpponentId);
+            return m.isNotEmpty ? m.first : null;
           })();
     final oppName = opp?.name ?? 'Alle';
 
     // KPIs
-    final winsMe = games.where((g) => g.winner == Winner.me).length;
+    final winsMe  = games.where((g) => g.winner == Winner.me).length;
     final winsOpp = games.where((g) => g.winner == Winner.opponent).length;
 
     int sumMyPoints = 0, sumOppPoints = 0;
@@ -59,42 +58,26 @@ class _StatsScreenState extends State<StatsScreen> {
 
       if (g.winner == Winner.me) {
         switch (g.winKind) {
-          case WinKind.single:
-            meSingle++;
-            break;
-          case WinKind.gammon:
-            meGammon++;
-            break;
-          case WinKind.backgammon:
-            meBackgammon++;
-            break;
-          case WinKind.passDouble:
-            mePass++;
-            break;
+          case WinKind.single: meSingle++; break;
+          case WinKind.gammon: meGammon++; break;
+          case WinKind.backgammon: meBackgammon++; break;
+          case WinKind.passDouble: mePass++; break;
         }
       } else {
         switch (g.winKind) {
-          case WinKind.single:
-            oppSingle++;
-            break;
-          case WinKind.gammon:
-            oppGammon++;
-            break;
-          case WinKind.backgammon:
-            oppBackgammon++;
-            break;
-          case WinKind.passDouble:
-            oppPass++;
-            break;
+          case WinKind.single: oppSingle++; break;
+          case WinKind.gammon: oppGammon++; break;
+          case WinKind.backgammon: oppBackgammon++; break;
+          case WinKind.passDouble: oppPass++; break;
         }
       }
     }
 
-    final totalGames = games.length;
-    final winRate = totalGames == 0 ? 0.0 : (winsMe / totalGames) * 100.0;
+    final totalGames  = games.length;
+    final winRate     = totalGames == 0 ? 0.0 : (winsMe / totalGames) * 100.0;
     final avgDoubling = totalGames == 0 ? 0.0 : cubeSumAll / totalGames;
 
-    // Score-Verlauf (2 Linien)
+    // Score-Verlauf
     final List<double> myCum = [];
     final List<double> oppCum = [];
     double myAcc = 0, oppAcc = 0;
@@ -105,36 +88,34 @@ class _StatsScreenState extends State<StatsScreen> {
       oppCum.add(oppAcc);
     }
 
-    // Chart-Farben
-    final meColor = Theme.of(context).colorScheme.primary;
-    final oppColor = Theme.of(context).colorScheme.tertiary;
+    final meColor  = scheme.primary;
+    final oppColor = scheme.tertiary;
 
     return Scaffold(
       body: CustomScrollView(
         slivers: [
-          // 🔒 Sticky 1: Header "Statistiken"
-          SliverPersistentHeader(
+          // 🔹 Oberer Header identisch zu anderen Screens (SliverAppBar)
+          SliverAppBar(
             pinned: true,
-            delegate: _StickyChromeHeader(
-              minHeight: 102,
-              maxHeight: 102,
-              child: Container(
-                color: kChromeBg,
-                padding: const EdgeInsets.fromLTRB(16, 50, 16, 16),
-                alignment: Alignment.centerLeft,
-                child: Text('Statistiken', style: Theme.of(context).textTheme.headlineMedium),
-              ),
+            backgroundColor: scheme.secondaryContainer,
+            foregroundColor: scheme.onSecondaryContainer,
+            surfaceTintColor: Colors.transparent,
+            elevation: 0,
+            scrolledUnderElevation: 0,
+            title: Text(
+              'Statistiken',
+              style: text.headlineSmall?.copyWith(color: scheme.onSecondaryContainer),
             ),
           ),
 
-          // 🔒 Sticky 2: Kombinierter Container für VS-Bar + Gegnerauswahl (wie Sessions)
+          // 🔹 Sticky 2: VS-Bar + Gegnerauswahl (bleibt beim Scrollen)
           SliverPersistentHeader(
             pinned: true,
-            delegate: _StickyChromeHeader(
+            delegate: _StickyHeader(
               minHeight: 156,
               maxHeight: 156,
               child: Container(
-                color: Theme.of(context).colorScheme.background,
+                color: scheme.surface,
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.start,
@@ -147,9 +128,9 @@ class _StatsScreenState extends State<StatsScreen> {
                           emojiOrInitial: state.user?.avatar ?? '🙂',
                           avatarSize: 44,
                         ),
-                        Expanded(
+                        const Expanded(
                           child: Row(
-                            children: const [
+                            children: [
                               Expanded(child: _Line()),
                               _VsChip(),
                               Expanded(child: _Line()),
@@ -164,15 +145,17 @@ class _StatsScreenState extends State<StatsScreen> {
                       ],
                     ),
                     const SizedBox(height: 12),
-                    DropdownButtonFormField<String>(
+                    DropdownButtonFormField<String?>(
                       value: _selectedOpponentId,
                       decoration: const InputDecoration(labelText: 'Gegner'),
-                      items: [
-                        const DropdownMenuItem<String>(value: null, child: Text('Alle Gegner')),
-                        ...opponents.map((o) => DropdownMenuItem<String>(
-                              value: o.id,
-                              child: Text('${o.avatar}  ${o.name}'),
-                            )),
+                      items: <DropdownMenuItem<String?>>[
+                        const DropdownMenuItem<String?>(value: null, child: Text('Alle Gegner')),
+                        ...opponents.map(
+                          (o) => DropdownMenuItem<String?>(
+                            value: o.id,
+                            child: Text('${o.avatar}  ${o.name}'),
+                          ),
+                        ),
                       ],
                       onChanged: (v) => setState(() => _selectedOpponentId = v),
                     ),
@@ -182,100 +165,97 @@ class _StatsScreenState extends State<StatsScreen> {
             ),
           ),
 
-          // Inhalt (optisch etwas nach oben gezogen)
+          // 🔹 Inhalt
           SliverToBoxAdapter(
-            child: Transform.translate(
-              offset: const Offset(0, -48), // feintunen bei Bedarf: -6..-12
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                child: Column(
-                  children: [
-                    // KPI-Karten im Grid über volle Breite (2 Spalten, enger Gap)
-                    LayoutBuilder(
-                      builder: (context, constraints) {
-                        final double width = constraints.maxWidth;
-                        const int crossAxisCount = 2;
-                        const double spacing = 6;
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+              child: Column(
+                children: [
+                  // KPI-Grid
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final double width = constraints.maxWidth;
+                      const int crossAxisCount = 2;
+                      const double spacing = 6;
 
-                        return GridView.count(
-                          crossAxisCount: crossAxisCount,
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          crossAxisSpacing: spacing,
-                          mainAxisSpacing: spacing,
-                          childAspectRatio: (width / crossAxisCount) / 90,
-                          children: [
-                            _StatCard(label: 'Siege', value: '$winsMe : $winsOpp'),
-                            _StatCard(label: 'Gesamtpunkte', value: '$sumMyPoints : $sumOppPoints'),
-                            _StatCard(label: 'Win-Rate', value: '${winRate.toStringAsFixed(1)} %'),
-                            _StatCard(label: 'Ø Verdopplung', value: avgDoubling.toStringAsFixed(2)),
-                          ],
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 8),
+                      return GridView.count(
+                        crossAxisCount: crossAxisCount,
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        crossAxisSpacing: spacing,
+                        mainAxisSpacing: spacing,
+                        childAspectRatio: (width / crossAxisCount) / 90,
+                        children: [
+                          _StatCard(label: 'Siege', value: '$winsMe : $winsOpp'),
+                          _StatCard(label: 'Gesamtpunkte', value: '$sumMyPoints : $sumOppPoints'),
+                          _StatCard(label: 'Win-Rate', value: '${winRate.toStringAsFixed(1)} %'),
+                          _StatCard(label: 'Ø Verdopplung', value: avgDoubling.toStringAsFixed(2)),
+                        ],
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 8),
 
-                    // Tabelle Siegarten
-                    Card(
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('Siegarten', style: Theme.of(context).textTheme.titleMedium),
-                            const SizedBox(height: 8),
-                            _KindsRow(header: true, myLabel: myName, oppLabel: oppName),
-                            const Divider(),
-                            _KindsRow(kind: 'Single', my: meSingle, opp: oppSingle),
-                            _KindsRow(kind: 'Gammon', my: meGammon, opp: oppGammon),
-                            _KindsRow(kind: 'Backgammon', my: meBackgammon, opp: oppBackgammon),
-                            _KindsRow(kind: 'Doppelung abgelehnt', my: mePass, opp: oppPass),
-                          ],
-                        ),
+                  // Siegarten-Tabelle
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Siegarten', style: text.titleMedium),
+                          const SizedBox(height: 8),
+                          _KindsRow(header: true, myLabel: myName, oppLabel: oppName),
+                          const Divider(),
+                          _KindsRow(kind: 'Single', my: meSingle, opp: oppSingle),
+                          _KindsRow(kind: 'Gammon', my: meGammon, opp: oppGammon),
+                          _KindsRow(kind: 'Backgammon', my: meBackgammon, opp: oppBackgammon),
+                          _KindsRow(kind: 'Doppelung abgelehnt', my: mePass, opp: oppPass),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 16),
+                  ),
+                  const SizedBox(height: 16),
 
-                    // Score-Verlauf + Legende
-                    Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('Score-Verlauf', style: Theme.of(context).textTheme.titleMedium),
-                            const SizedBox(height: 8),
-                            if (myCum.isEmpty)
-                              const SizedBox(height: 220, child: Center(child: Text('Noch keine Spiele')))
-                            else
-                              Column(
-                                children: [
-                                  SizedBox(
-                                    height: 220,
-                                    child: _DualLineChart(
-                                      me: myCum,
-                                      opp: oppCum,
-                                      meLabel: myName,
-                                      oppLabel: oppName,
-                                      meColor: meColor,
-                                      oppColor: oppColor,
-                                    ),
+                  // Score-Verlauf + Legende
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Score-Verlauf', style: text.titleMedium),
+                          const SizedBox(height: 8),
+                          if (myCum.isEmpty)
+                            const SizedBox(height: 220, child: Center(child: Text('Noch keine Spiele')))
+                          else
+                            Column(
+                              children: [
+                                SizedBox(
+                                  height: 220,
+                                  child: _DualLineChart(
+                                    me: myCum,
+                                    opp: oppCum,
+                                    meLabel: myName,
+                                    oppLabel: oppName,
+                                    meColor: meColor,
+                                    oppColor: oppColor,
                                   ),
-                                  const SizedBox(height: 8),
-                                  _Legend(
-                                    entries: [
-                                      LegendEntry(label: myName, color: meColor),
-                                      LegendEntry(label: oppName, color: oppColor),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                          ],
-                        ),
+                                ),
+                                const SizedBox(height: 8),
+                                _Legend(
+                                  entries: [
+                                    LegendEntry(label: myName, color: meColor),
+                                    LegendEntry(label: oppName, color: oppColor),
+                                  ],
+                                ),
+                              ],
+                            ),
+                        ],
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -285,13 +265,13 @@ class _StatsScreenState extends State<StatsScreen> {
   }
 }
 
-// ===== Sticky Header Delegate: Child exakt auf Sliver-Höhe zwingen =====
-class _StickyChromeHeader extends SliverPersistentHeaderDelegate {
+// ===== Sticky Header Delegate (für VS + Dropdown) =====
+class _StickyHeader extends SliverPersistentHeaderDelegate {
   final double minHeight;
   final double maxHeight;
   final Widget child;
 
-  _StickyChromeHeader({
+  _StickyHeader({
     required this.minHeight,
     required this.maxHeight,
     required this.child,
@@ -306,33 +286,34 @@ class _StickyChromeHeader extends SliverPersistentHeaderDelegate {
   Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
     return Material(
       elevation: overlapsContent ? 1 : 0,
-      child: SizedBox.expand( // verhindert layoutExtent/paintExtent Konflikte
-        child: child,
-      ),
+      child: SizedBox.expand(child: child),
     );
   }
 
   @override
-  bool shouldRebuild(covariant _StickyChromeHeader old) =>
+  bool shouldRebuild(covariant _StickyHeader old) =>
       minHeight != old.minHeight || maxHeight != old.maxHeight || child != old.child;
 }
 
-// ===== VS-Bausteine (1:1 Sessions) =====
+// ===== VS-Bausteine =====
 class _VsChip extends StatelessWidget {
   const _VsChip();
 
   @override
   Widget build(BuildContext context) {
-    final onSurfaceVariant = Theme.of(context).colorScheme.onSurfaceVariant;
+    final scheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       margin: const EdgeInsets.symmetric(horizontal: 8),
       decoration: BoxDecoration(
-        color: kChromeBg, // identische Chip-Farbe
+        color: scheme.surfaceVariant,
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: onSurfaceVariant.withOpacity(0.2)),
+        border: Border.all(color: scheme.onSurfaceVariant.withOpacity(0.2)),
       ),
-      child: Text('VS', style: Theme.of(context).textTheme.labelLarge),
+      child: Text(
+        'VS',
+        style: Theme.of(context).textTheme.labelLarge?.copyWith(color: scheme.onSurfaceVariant),
+      ),
     );
   }
 }
@@ -350,7 +331,7 @@ class _Line extends StatelessWidget {
   }
 }
 
-// ===== Charts & Legende =====
+// ===== Charts & Legende (unverändert bis auf Theme-Nutzung) =====
 class _StatCard extends StatelessWidget {
   final String label;
   final String value;
@@ -358,6 +339,7 @@ class _StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return SizedBox(
       width: 160,
       child: Card(
@@ -366,10 +348,12 @@ class _StatCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(label,
-                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      )),
+              Text(
+                label,
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                    ),
+              ),
               const SizedBox(height: 6),
               Text(
                 value,
@@ -404,8 +388,9 @@ class _KindsRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     final styleHead = Theme.of(context).textTheme.labelMedium?.copyWith(
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
+          color: scheme.onSurfaceVariant,
         );
     final styleVal = Theme.of(context).textTheme.bodyLarge;
 

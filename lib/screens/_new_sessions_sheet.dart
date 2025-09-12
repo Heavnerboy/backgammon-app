@@ -58,7 +58,7 @@ class _NewSessionSheetState extends State<NewSessionSheet> {
               Expanded(
                 child: DropdownButtonFormField<int>(
                   value: _cube,
-                  decoration: const InputDecoration(labelText: 'Würfel'),
+                  decoration: const InputDecoration(labelText: 'Verdoppelung'),
                   items: _cubeOptions
                       .map((v) => DropdownMenuItem(value: v, child: Text('$v')))
                       .toList(),

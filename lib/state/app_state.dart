@@ -24,6 +24,7 @@ class AppState extends ChangeNotifier {
     await state._loadAll();
     return state;
   }
+  
 
   Future<void> _loadAll() async {
     final userStr = storage.getString(StorageKeys.user);

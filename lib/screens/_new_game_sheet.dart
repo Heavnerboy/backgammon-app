@@ -21,6 +21,9 @@ class _NewGameSheetState extends State<NewGameSheet> {
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
+    final scheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
     final session = state.sessions.firstWhere((s) => s.id == widget.sessionId);
     final myName = state.user?.name ?? 'Ich';
     final oppName = (() {
@@ -28,70 +31,95 @@ class _NewGameSheetState extends State<NewGameSheet> {
       return match.isNotEmpty ? match.first.name : 'Gegner';
     })();
 
-    return Padding(
-      padding: EdgeInsets.only(
-        left: 16, right: 16,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 16,
-        top: 16,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Gewinner mit echten Namen
-          DropdownButtonFormField<Winner>(
-            value: _winner,
-            decoration: const InputDecoration(labelText: 'Gewinner'),
-            items: [
-              DropdownMenuItem(value: Winner.me, child: Text(myName)),
-              DropdownMenuItem(value: Winner.opponent, child: Text(oppName)),
-            ],
-            onChanged: (v) => setState(() => _winner = v ?? Winner.me),
-          ),
-          const SizedBox(height: 12),
-          DropdownButtonFormField<WinKind>(
-            value: _winKind,
-            decoration: const InputDecoration(labelText: 'Siegart'),
-            items: const [
-              DropdownMenuItem(value: WinKind.single, child: Text('Single')),
-              DropdownMenuItem(value: WinKind.gammon, child: Text('Gammon')),
-              DropdownMenuItem(value: WinKind.backgammon, child: Text('Backgammon')),
-              DropdownMenuItem(value: WinKind.passDouble, child: Text('Doppelung abgelehnt')),
-            ],
-            onChanged: (v) => setState(() => _winKind = v ?? WinKind.single),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: DropdownButtonFormField<int>(
-                  value: _cube,
-                  decoration: const InputDecoration(labelText: 'Würfel'),
-                  items: _cubeOptions
-                      .map((v) => DropdownMenuItem(value: v, child: Text('$v')))
-                      .toList(),
-                  onChanged: (v) => setState(() => _cube = v ?? 1),
-                ),
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: EdgeInsets.only(
+          left: 16,
+          right: 16,
+          bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+          top: 16,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // 🔹 Sheet-Header im M3-Stil (Dark-Mode-freundlich)
+            Container(
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: scheme.secondaryContainer,
+                borderRadius: BorderRadius.circular(12),
               ),
-              const SizedBox(width: 12),
-              DoublingCube(value: _cube, size: 28),
-            ],
-          ),
-          const SizedBox(height: 16),
-          FilledButton.icon(
-            icon: const Icon(Icons.save),
-            label: const Text('Spiel hinzufügen'),
-            onPressed: () {
-              state.addGameScored(
-                sessionId: widget.sessionId,
-                winner: _winner,
-                winKind: _winKind,
-                cube: _cube,
-              );
-              Navigator.pop(context);
-            },
-          ),
-          const SizedBox(height: 8),
-        ],
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Text(
+                'Neues Spiel',
+                style: textTheme.titleMedium?.copyWith(color: scheme.onSecondaryContainer),
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // Gewinner mit echten Namen
+            DropdownButtonFormField<Winner>(
+              value: _winner,
+              decoration: const InputDecoration(labelText: 'Gewinner'),
+              items: [
+                DropdownMenuItem(value: Winner.me, child: Text(myName)),
+                DropdownMenuItem(value: Winner.opponent, child: Text(oppName)),
+              ],
+              onChanged: (v) => setState(() => _winner = v ?? Winner.me),
+            ),
+            const SizedBox(height: 12),
+
+            // Siegart
+            DropdownButtonFormField<WinKind>(
+              value: _winKind,
+              decoration: const InputDecoration(labelText: 'Siegart'),
+              items: const [
+                DropdownMenuItem(value: WinKind.single, child: Text('Single')),
+                DropdownMenuItem(value: WinKind.gammon, child: Text('Gammon')),
+                DropdownMenuItem(value: WinKind.backgammon, child: Text('Backgammon')),
+                DropdownMenuItem(value: WinKind.passDouble, child: Text('Doppelung abgelehnt')),
+              ],
+              onChanged: (v) => setState(() => _winKind = v ?? WinKind.single),
+            ),
+            const SizedBox(height: 12),
+
+            // Verdopplungswürfel
+            Row(
+              children: [
+                Expanded(
+                  child: DropdownButtonFormField<int>(
+                    value: _cube,
+                    decoration: const InputDecoration(labelText: 'Verdopplungswürfel'),
+                    items: _cubeOptions.map((v) => DropdownMenuItem(value: v, child: Text('$v'))).toList(),
+                    onChanged: (v) => setState(() => _cube = v ?? 1),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                DoublingCube(value: _cube, size: 28),
+              ],
+            ),
+
+            const SizedBox(height: 16),
+
+            // Aktion
+            FilledButton.icon(
+              icon: const Icon(Icons.add),
+              label: const Text('Spiel hinzufügen'),
+              onPressed: () {
+                state.addGameScored(
+                  sessionId: widget.sessionId,
+                  winner: _winner,
+                  winKind: _winKind,
+                  cube: _cube,
+                );
+                Navigator.pop(context);
+              },
+            ),
+
+            const SizedBox(height: 8),
+          ],
+        ),
       ),
     );
   }
