@@ -8,11 +8,16 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
+class _SplashScreenState extends State<SplashScreen>
+    with SingleTickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
-    Future.delayed(const Duration(milliseconds: 1200), widget.onDone);
+    Future.delayed(const Duration(milliseconds: 1200), () {
+      if (mounted) {
+        widget.onDone();
+      }
+    });
   }
 
   @override
@@ -41,8 +46,17 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                   height: 100,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: i.isEven ? const Color(0xFFEDE7F6) : const Color(0xFFB39DDB),
-                    boxShadow: const [BoxShadow(blurRadius: 16, spreadRadius: 0, offset: Offset(0, 8), color: Colors.black26)],
+                    color: i.isEven
+                        ? const Color(0xFFEDE7F6)
+                        : const Color(0xFFB39DDB),
+                    boxShadow: const [
+                      BoxShadow(
+                        blurRadius: 16,
+                        spreadRadius: 0,
+                        offset: Offset(0, 8),
+                        color: Colors.black26,
+                      )
+                    ],
                     border: Border.all(color: Colors.black26, width: 1),
                   ),
                 ),

@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../state/app_state.dart';
 import '../models/models.dart';
+import '../widgets/avatar_with_name.dart';
+
+// Gleiches Grau wie Navigation/Home/Sessions/Players
+const kChromeBg = Color(0xFFF2F3F5);
 
 class StatsScreen extends StatefulWidget {
   const StatsScreen({super.key});
@@ -22,22 +26,22 @@ class _StatsScreenState extends State<StatsScreen> {
         ? state.sessions
         : state.sessions.where((s) => s.opponentId == _selectedOpponentId).toList();
 
-    // Alle Spiele der gefilterten Sessions einsammeln
+    // Alle Spiele der gefilterten Sessions
     final List<Game> games = [];
     for (final s in sessions) {
       games.addAll(state.gamesForSession(s.id));
     }
     games.sort((a, b) => a.timestamp.compareTo(b.timestamp)); // chronologisch
 
-    // Namen + Avatare
+    // Namen (werden in KPIs/Tabelle genutzt)
     final myName = state.user?.name ?? 'Ich';
-    final myAvatar = state.user?.avatar ?? '🙂';
-    final oppName = (_selectedOpponentId == null)
-        ? 'Alle'
-        : opponents.firstWhere((o) => o.id == _selectedOpponentId).name;
-    final oppAvatar = (_selectedOpponentId == null)
-        ? '👥'
-        : opponents.firstWhere((o) => o.id == _selectedOpponentId).avatar;
+    final Opponent? opp = (_selectedOpponentId == null)
+        ? null
+        : (() {
+            final match = opponents.where((o) => o.id == _selectedOpponentId);
+            return match.isNotEmpty ? match.first : null;
+          })();
+    final oppName = opp?.name ?? 'Alle';
 
     // KPIs
     final winsMe = games.where((g) => g.winner == Winner.me).length;
@@ -47,7 +51,7 @@ class _StatsScreenState extends State<StatsScreen> {
     int meSingle = 0, meGammon = 0, meBackgammon = 0, mePass = 0;
     int oppSingle = 0, oppGammon = 0, oppBackgammon = 0, oppPass = 0;
 
-    int cubeSumAll = 0; // Ø Verdopplung über alle Spiele
+    int cubeSumAll = 0;
     for (final g in games) {
       sumMyPoints += g.myPoints;
       sumOppPoints += g.opponentPoints;
@@ -55,17 +59,33 @@ class _StatsScreenState extends State<StatsScreen> {
 
       if (g.winner == Winner.me) {
         switch (g.winKind) {
-          case WinKind.single: meSingle++; break;
-          case WinKind.gammon: meGammon++; break;
-          case WinKind.backgammon: meBackgammon++; break;
-          case WinKind.passDouble: mePass++; break;
+          case WinKind.single:
+            meSingle++;
+            break;
+          case WinKind.gammon:
+            meGammon++;
+            break;
+          case WinKind.backgammon:
+            meBackgammon++;
+            break;
+          case WinKind.passDouble:
+            mePass++;
+            break;
         }
       } else {
         switch (g.winKind) {
-          case WinKind.single: oppSingle++; break;
-          case WinKind.gammon: oppGammon++; break;
-          case WinKind.backgammon: oppBackgammon++; break;
-          case WinKind.passDouble: oppPass++; break;
+          case WinKind.single:
+            oppSingle++;
+            break;
+          case WinKind.gammon:
+            oppGammon++;
+            break;
+          case WinKind.backgammon:
+            oppBackgammon++;
+            break;
+          case WinKind.passDouble:
+            oppPass++;
+            break;
         }
       }
     }
@@ -85,135 +105,252 @@ class _StatsScreenState extends State<StatsScreen> {
       oppCum.add(oppAcc);
     }
 
-    // Chart-Farben (für Legende)
+    // Chart-Farben
     final meColor = Theme.of(context).colorScheme.primary;
     final oppColor = Theme.of(context).colorScheme.tertiary;
 
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: ListView(
-          children: [
-            // Gegnerauswahl
-            Row(
-              children: [
-                Expanded(
-                  child: DropdownButtonFormField<String>(
-                    value: _selectedOpponentId,
-                    decoration: const InputDecoration(labelText: 'Gegner'),
-                    items: [
-                      const DropdownMenuItem<String>(
-                        value: null,
-                        child: Text('Alle Gegner'),
-                      ),
-                      ...opponents.map((o) => DropdownMenuItem<String>(
-                            value: o.id,
-                            child: Text('${o.avatar}  ${o.name}'),
-                          )),
-                    ],
-                    onChanged: (v) => setState(() => _selectedOpponentId = v),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-
-            // Kopfzeile mit Avataren
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(myAvatar, style: const TextStyle(fontSize: 22)),
-                const SizedBox(width: 8),
-                Text(myName, style: Theme.of(context).textTheme.titleLarge),
-                const SizedBox(width: 12),
-                Text('vs', style: Theme.of(context).textTheme.titleLarge),
-                const SizedBox(width: 12),
-                Text(oppAvatar, style: const TextStyle(fontSize: 22)),
-                const SizedBox(width: 8),
-                Text(oppName, style: Theme.of(context).textTheme.titleLarge),
-              ],
-            ),
-            const SizedBox(height: 12),
-
-            // KPI-Karten
-            Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              children: [
-                _StatCard(label: 'Siege', value: '$winsMe : $winsOpp'),
-                _StatCard(label: 'Gesamtpunkte', value: '$sumMyPoints : $sumOppPoints'),
-                _StatCard(label: 'Win-Rate', value: '${winRate.toStringAsFixed(1)} %'),
-                _StatCard(label: 'Ø Verdopplung', value: avgDoubling.toStringAsFixed(2)),
-              ],
-            ),
-            const SizedBox(height: 16),
-
-            // Tabelle Siegarten (inkl. Passen der Verdopplung)
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Siegarten', style: Theme.of(context).textTheme.titleMedium),
-                    const SizedBox(height: 8),
-                    _KindsRow(header: true, myLabel: myName, oppLabel: oppName),
-                    const Divider(),
-                    _KindsRow(kind: 'Single', my: meSingle, opp: oppSingle),
-                    _KindsRow(kind: 'Gammon', my: meGammon, opp: oppGammon),
-                    _KindsRow(kind: 'Backgammon', my: meBackgammon, opp: oppBackgammon),
-                    _KindsRow(kind: 'Doppelung abgelehnt', my: mePass, opp: oppPass),
-                  ],
-                ),
+    return Scaffold(
+      body: CustomScrollView(
+        slivers: [
+          // 🔒 Sticky 1: Header "Statistiken"
+          SliverPersistentHeader(
+            pinned: true,
+            delegate: _StickyChromeHeader(
+              minHeight: 102,
+              maxHeight: 102,
+              child: Container(
+                color: kChromeBg,
+                padding: const EdgeInsets.fromLTRB(16, 50, 16, 16),
+                alignment: Alignment.centerLeft,
+                child: Text('Statistiken', style: Theme.of(context).textTheme.headlineMedium),
               ),
             ),
-            const SizedBox(height: 16),
+          ),
 
-            // Score-Verlauf (2 Linien) + Legende
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(12),
+          // 🔒 Sticky 2: Kombinierter Container für VS-Bar + Gegnerauswahl (wie Sessions)
+          SliverPersistentHeader(
+            pinned: true,
+            delegate: _StickyChromeHeader(
+              minHeight: 156,
+              maxHeight: 156,
+              child: Container(
+                color: Theme.of(context).colorScheme.background,
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.start,
                   children: [
-                    Text('Score-Verlauf', style: Theme.of(context).textTheme.titleMedium),
-                    const SizedBox(height: 8),
-                    if (myCum.isEmpty)
-                      const SizedBox(height: 220, child: Center(child: Text('Noch keine Spiele')))
-                    else
-                      Column(
-                        children: [
-                          SizedBox(
-                            height: 220,
-                            child: _DualLineChart(
-                              me: myCum,
-                              opp: oppCum,
-                              meLabel: myName,
-                              oppLabel: oppName,
-                              meColor: meColor,
-                              oppColor: oppColor,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          _Legend(
-                            entries: [
-                              LegendEntry(label: myName, color: meColor),
-                              LegendEntry(label: oppName, color: oppColor),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        AvatarWithName(
+                          name: myName,
+                          emojiOrInitial: state.user?.avatar ?? '🙂',
+                          avatarSize: 44,
+                        ),
+                        Expanded(
+                          child: Row(
+                            children: const [
+                              Expanded(child: _Line()),
+                              _VsChip(),
+                              Expanded(child: _Line()),
                             ],
                           ),
-                        ],
-                      ),
+                        ),
+                        AvatarWithName(
+                          name: oppName,
+                          emojiOrInitial: opp?.avatar ?? '👥',
+                          avatarSize: 44,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      value: _selectedOpponentId,
+                      decoration: const InputDecoration(labelText: 'Gegner'),
+                      items: [
+                        const DropdownMenuItem<String>(value: null, child: Text('Alle Gegner')),
+                        ...opponents.map((o) => DropdownMenuItem<String>(
+                              value: o.id,
+                              child: Text('${o.avatar}  ${o.name}'),
+                            )),
+                      ],
+                      onChanged: (v) => setState(() => _selectedOpponentId = v),
+                    ),
                   ],
                 ),
               ),
             ),
-          ],
-        ),
+          ),
+
+          // Inhalt (optisch etwas nach oben gezogen)
+          SliverToBoxAdapter(
+            child: Transform.translate(
+              offset: const Offset(0, -48), // feintunen bei Bedarf: -6..-12
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                child: Column(
+                  children: [
+                    // KPI-Karten im Grid über volle Breite (2 Spalten, enger Gap)
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        final double width = constraints.maxWidth;
+                        const int crossAxisCount = 2;
+                        const double spacing = 6;
+
+                        return GridView.count(
+                          crossAxisCount: crossAxisCount,
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          crossAxisSpacing: spacing,
+                          mainAxisSpacing: spacing,
+                          childAspectRatio: (width / crossAxisCount) / 90,
+                          children: [
+                            _StatCard(label: 'Siege', value: '$winsMe : $winsOpp'),
+                            _StatCard(label: 'Gesamtpunkte', value: '$sumMyPoints : $sumOppPoints'),
+                            _StatCard(label: 'Win-Rate', value: '${winRate.toStringAsFixed(1)} %'),
+                            _StatCard(label: 'Ø Verdopplung', value: avgDoubling.toStringAsFixed(2)),
+                          ],
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 8),
+
+                    // Tabelle Siegarten
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Siegarten', style: Theme.of(context).textTheme.titleMedium),
+                            const SizedBox(height: 8),
+                            _KindsRow(header: true, myLabel: myName, oppLabel: oppName),
+                            const Divider(),
+                            _KindsRow(kind: 'Single', my: meSingle, opp: oppSingle),
+                            _KindsRow(kind: 'Gammon', my: meGammon, opp: oppGammon),
+                            _KindsRow(kind: 'Backgammon', my: meBackgammon, opp: oppBackgammon),
+                            _KindsRow(kind: 'Doppelung abgelehnt', my: mePass, opp: oppPass),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Score-Verlauf + Legende
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Score-Verlauf', style: Theme.of(context).textTheme.titleMedium),
+                            const SizedBox(height: 8),
+                            if (myCum.isEmpty)
+                              const SizedBox(height: 220, child: Center(child: Text('Noch keine Spiele')))
+                            else
+                              Column(
+                                children: [
+                                  SizedBox(
+                                    height: 220,
+                                    child: _DualLineChart(
+                                      me: myCum,
+                                      opp: oppCum,
+                                      meLabel: myName,
+                                      oppLabel: oppName,
+                                      meColor: meColor,
+                                      oppColor: oppColor,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  _Legend(
+                                    entries: [
+                                      LegendEntry(label: myName, color: meColor),
+                                      LegendEntry(label: oppName, color: oppColor),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
+// ===== Sticky Header Delegate: Child exakt auf Sliver-Höhe zwingen =====
+class _StickyChromeHeader extends SliverPersistentHeaderDelegate {
+  final double minHeight;
+  final double maxHeight;
+  final Widget child;
+
+  _StickyChromeHeader({
+    required this.minHeight,
+    required this.maxHeight,
+    required this.child,
+  });
+
+  @override
+  double get minExtent => minHeight;
+  @override
+  double get maxExtent => maxHeight;
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return Material(
+      elevation: overlapsContent ? 1 : 0,
+      child: SizedBox.expand( // verhindert layoutExtent/paintExtent Konflikte
+        child: child,
+      ),
+    );
+  }
+
+  @override
+  bool shouldRebuild(covariant _StickyChromeHeader old) =>
+      minHeight != old.minHeight || maxHeight != old.maxHeight || child != old.child;
+}
+
+// ===== VS-Bausteine (1:1 Sessions) =====
+class _VsChip extends StatelessWidget {
+  const _VsChip();
+
+  @override
+  Widget build(BuildContext context) {
+    final onSurfaceVariant = Theme.of(context).colorScheme.onSurfaceVariant;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      margin: const EdgeInsets.symmetric(horizontal: 8),
+      decoration: BoxDecoration(
+        color: kChromeBg, // identische Chip-Farbe
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: onSurfaceVariant.withOpacity(0.2)),
+      ),
+      child: Text('VS', style: Theme.of(context).textTheme.labelLarge),
+    );
+  }
+}
+
+class _Line extends StatelessWidget {
+  const _Line();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 1,
+      margin: const EdgeInsets.symmetric(horizontal: 4),
+      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.12),
+    );
+  }
+}
+
+// ===== Charts & Legende =====
 class _StatCard extends StatelessWidget {
   final String label;
   final String value;
@@ -295,8 +432,6 @@ class _KindsRow extends StatelessWidget {
     );
   }
 }
-
-// ===== Charts & Legende =====
 
 class _DualLineChart extends StatelessWidget {
   final List<double> me;
@@ -392,7 +527,11 @@ class _DualLinePainter extends CustomPainter {
       for (int i = 0; i < d.length; i++) {
         final x = xFor(i, d.length);
         final y = yFor(d[i]);
-        if (i == 0) path.moveTo(x, y); else path.lineTo(x, y);
+        if (i == 0) {
+          path.moveTo(x, y);
+        } else {
+          path.lineTo(x, y);
+        }
       }
       final line = Paint()
         ..color = c
