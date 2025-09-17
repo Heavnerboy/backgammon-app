@@ -1,5 +1,5 @@
-name: flutter_application_1
-description: "A new Flutter project."
+name: bg_score
+description: "Track and manage your Backgammon match scores easily."
 publish_to: 'none'
 
 version: 1.0.0+1
@@ -10,11 +10,14 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
   cupertino_icons: ^1.0.8
   provider: ^6.1.5+1
   shared_preferences: ^2.5.3
   uuid: ^4.5.1
   intl: ^0.20.2
+  google_fonts: ^6.2.1
 
 dev_dependencies:
   flutter_test:
@@ -33,7 +36,7 @@ flutter_launcher_icons:
   image_path: assets/favicon3.png
 
   # Android Adaptive Icon (empfohlen)
-  adaptive_icon_background: "#0A3C92"      # oder: assets/icon_bg.png
+  adaptive_icon_background: "#0A3C92"
   adaptive_icon_foreground: assets/favicon3.png
   adaptive_icon_monochrome: assets/favicon3.png   # optional (Android 13+)
 
@@ -42,7 +45,7 @@ flutter_launcher_icons:
 
 flutter:
   uses-material-design: true
+  generate: true   # <--- WICHTIG: aktiviert gen_l10n
 
-  # Optional: Icon-Datei auch als Asset verfügbar machen (praktisch, falls im UI gebraucht)
   assets:
     - assets/favicon3.png

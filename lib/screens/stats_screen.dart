@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../state/app_state.dart';
 import '../models/models.dart';
+import '../l10n/generated/app_localizations.dart';
 import '../widgets/avatar_with_name.dart';
-import '../state/theme_provider.dart';
 
 class StatsScreen extends StatefulWidget {
   const StatsScreen({super.key});
@@ -12,41 +13,34 @@ class StatsScreen extends StatefulWidget {
 }
 
 class _StatsScreenState extends State<StatsScreen> {
-  String? _selectedOpponentId; // null = Alle Gegner
+  String? _selectedOpponentId;
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
     final state     = context.watch<AppState>();
     final scheme    = Theme.of(context).colorScheme;
     final text      = Theme.of(context).textTheme;
     final opponents = state.opponents;
-
-    // Theme-Status
-    final isDark = context.watch<ThemeProvider>().themeMode == ThemeMode.dark;
-
-    // Sessions nach Gegner filtern (null => alle)
     final sessions = (_selectedOpponentId == null)
         ? state.sessions
         : state.sessions.where((s) => s.opponentId == _selectedOpponentId).toList();
 
-    // Alle Spiele der gefilterten Sessions
     final List<Game> games = [];
     for (final s in sessions) {
       games.addAll(state.gamesForSession(s.id));
     }
-    games.sort((a, b) => a.timestamp.compareTo(b.timestamp)); // chronologisch
+    games.sort((a, b) => a.timestamp.compareTo(b.timestamp));
 
-    // Namen
-    final myName = state.user?.name ?? 'Ich';
+    final myName = state.user?.name ?? l.me;
     final Opponent? opp = (_selectedOpponentId == null)
         ? null
         : (() {
             final m = opponents.where((o) => o.id == _selectedOpponentId);
             return m.isNotEmpty ? m.first : null;
           })();
-    final oppName = opp?.name ?? 'Alle';
+    final oppName = opp?.name ?? l.allOpponentsShort;
 
-    // KPIs
     final winsMe  = games.where((g) => g.winner == Winner.me).length;
     final winsOpp = games.where((g) => g.winner == Winner.opponent).length;
 
@@ -81,7 +75,6 @@ class _StatsScreenState extends State<StatsScreen> {
     final winRate     = totalGames == 0 ? 0.0 : (winsMe / totalGames) * 100.0;
     final avgDoubling = totalGames == 0 ? 0.0 : cubeSumAll / totalGames;
 
-    // Score-Verlauf
     final List<double> myCum = [];
     final List<double> oppCum = [];
     double myAcc = 0, oppAcc = 0;
@@ -98,7 +91,6 @@ class _StatsScreenState extends State<StatsScreen> {
     return Scaffold(
       body: CustomScrollView(
         slivers: [
-          // 🔹 Header mit Toggle
           SliverAppBar(
             pinned: true,
             backgroundColor: scheme.secondaryContainer,
@@ -107,29 +99,24 @@ class _StatsScreenState extends State<StatsScreen> {
             elevation: 0,
             scrolledUnderElevation: 0,
             title: Text(
-              'Statistiken',
+              l.statsTitle,
               style: text.headlineSmall?.copyWith(color: scheme.onSecondaryContainer),
             ),
-            actions: [
+            actions: const [
               Padding(
-                padding: const EdgeInsets.only(right: 12, bottom: 6),
-                child: _ThemeModeToggle(
-                  isDark: isDark,
-                  onToggle: () => context.read<ThemeProvider>().toggleTheme(),
-                ),
+                padding: EdgeInsets.only(right: 12, bottom: 6),
               ),
             ],
           ),
 
-          // 🔹 Sticky 2: VS-Bar + Gegnerauswahl (leicht kompakter)
           SliverPersistentHeader(
             pinned: true,
             delegate: _StickyHeader(
-              minHeight: 156, // vorher 156
+              minHeight: 156,
               maxHeight: 156,
               child: Container(
                 color: scheme.surface,
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 12), // kompakter
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.start,
                   children: [
@@ -157,12 +144,15 @@ class _StatsScreenState extends State<StatsScreen> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8), // vorher 12
+                    const SizedBox(height: 8),
                     DropdownButtonFormField<String?>(
                       value: _selectedOpponentId,
-                      decoration: const InputDecoration(labelText: 'Gegner'),
+                      decoration: InputDecoration(labelText: l.opponentLabel),
                       items: <DropdownMenuItem<String?>>[
-                        const DropdownMenuItem<String?>(value: null, child: Text('Alle Gegner')),
+                        DropdownMenuItem<String?>(
+                          value: null,
+                          child: Text(l.allOpponents),
+                        ),
                         ...opponents.map(
                           (o) => DropdownMenuItem<String?>(
                             value: o.id,
@@ -178,10 +168,9 @@ class _StatsScreenState extends State<StatsScreen> {
             ),
           ),
 
-          // 🔹 Inhalt
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16), // top vorher 16 → 8
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
               child: Column(
                 children: [
                   // KPI-Grid
@@ -199,48 +188,46 @@ class _StatsScreenState extends State<StatsScreen> {
                         mainAxisSpacing: spacing,
                         childAspectRatio: (width / crossAxisCount) / 90,
                         children: [
-                          _StatCard(label: 'Siege', value: '$winsMe : $winsOpp'),
-                          _StatCard(label: 'Gesamtpunkte', value: '$sumMyPoints : $sumOppPoints'),
-                          _StatCard(label: 'Win-Rate', value: '${winRate.toStringAsFixed(1)} %'),
-                          _StatCard(label: 'Ø Verdopplung', value: avgDoubling.toStringAsFixed(2)),
+                          _StatCard(label: l.kpiWins, value: '$winsMe : $winsOpp'),
+                          _StatCard(label: l.kpiTotalPoints, value: '$sumMyPoints : $sumOppPoints'),
+                          _StatCard(label: l.kpiWinRate, value: '${winRate.toStringAsFixed(1)} %'),
+                          _StatCard(label: l.kpiAvgDoubling, value: avgDoubling.toStringAsFixed(2)),
                         ],
                       );
                     },
                   ),
                   const SizedBox(height: 8),
 
-                  // Siegarten-Tabelle
                   Card(
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Siegarten', style: text.titleMedium),
+                          Text(l.winKindsTitle, style: text.titleMedium),
                           const SizedBox(height: 8),
                           _KindsRow(header: true, myLabel: myName, oppLabel: oppName),
                           const Divider(),
-                          _KindsRow(kind: 'Single', my: meSingle, opp: oppSingle),
-                          _KindsRow(kind: 'Gammon', my: meGammon, opp: oppGammon),
-                          _KindsRow(kind: 'Backgammon', my: meBackgammon, opp: oppBackgammon),
-                          _KindsRow(kind: 'Doppelung abgelehnt', my: mePass, opp: oppPass),
+                          _KindsRow(kind: l.winKindSingle, my: meSingle, opp: oppSingle),
+                          _KindsRow(kind: l.winKindGammon, my: meGammon, opp: oppGammon),
+                          _KindsRow(kind: l.winKindBackgammon, my: meBackgammon, opp: oppBackgammon),
+                          _KindsRow(kind: l.winKindPassDouble, my: mePass, opp: oppPass),
                         ],
                       ),
                     ),
                   ),
                   const SizedBox(height: 16),
 
-                  // Score-Verlauf + Legende
                   Card(
                     child: Padding(
                       padding: const EdgeInsets.all(12),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Score-Verlauf', style: text.titleMedium),
+                          Text(l.scoreProgressTitle, style: text.titleMedium),
                           const SizedBox(height: 8),
                           if (myCum.isEmpty)
-                            const SizedBox(height: 220, child: Center(child: Text('Noch keine Spiele')))
+                            SizedBox(height: 220, child: Center(child: Text(l.noGamesYet)))
                           else
                             Column(
                               children: [
@@ -277,8 +264,6 @@ class _StatsScreenState extends State<StatsScreen> {
     );
   }
 }
-
-// ===== Sticky Header Delegate (für VS + Dropdown) =====
 class _StickyHeader extends SliverPersistentHeaderDelegate {
   final double minHeight;
   final double maxHeight;
@@ -301,20 +286,20 @@ class _StickyHeader extends SliverPersistentHeaderDelegate {
       elevation: overlapsContent ? 1 : 0,
       child: SizedBox.expand(child: child),
     );
-    }
+  }
 
   @override
   bool shouldRebuild(covariant _StickyHeader old) =>
       minHeight != old.minHeight || maxHeight != old.maxHeight || child != old.child;
 }
 
-// ===== VS-Bausteine =====
 class _VsChip extends StatelessWidget {
   const _VsChip();
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final l = AppLocalizations.of(context)!;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       margin: const EdgeInsets.symmetric(horizontal: 8),
@@ -324,7 +309,7 @@ class _VsChip extends StatelessWidget {
         border: Border.all(color: scheme.onSurfaceVariant.withOpacity(0.2)),
       ),
       child: Text(
-        'VS',
+        l.vs,
         style: Theme.of(context).textTheme.labelLarge?.copyWith(color: scheme.onSurfaceVariant),
       ),
     );
@@ -344,7 +329,6 @@ class _Line extends StatelessWidget {
   }
 }
 
-// ===== Charts & Legende (unverändert bis auf Theme-Nutzung) =====
 class _StatCard extends StatelessWidget {
   final String label;
   final String value;
@@ -402,6 +386,8 @@ class _KindsRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final l = AppLocalizations.of(context)!;
+
     final styleHead = Theme.of(context).textTheme.labelMedium?.copyWith(
           color: scheme.onSurfaceVariant,
         );
@@ -417,12 +403,12 @@ class _KindsRow extends StatelessWidget {
           ),
           Expanded(
             flex: 2,
-            child: Text(header ? (myLabel ?? 'Ich') : '${my ?? 0}',
+            child: Text(header ? (myLabel ?? l.me) : '${my ?? 0}',
                 textAlign: TextAlign.center, style: header ? styleHead : styleVal),
           ),
           Expanded(
             flex: 2,
-            child: Text(header ? (oppLabel ?? 'Gegner') : '${opp ?? 0}',
+            child: Text(header ? (oppLabel ?? l.opponent) : '${opp ?? 0}',
                 textAlign: TextAlign.center, style: header ? styleHead : styleVal),
           ),
         ],
@@ -485,7 +471,6 @@ class _DualLinePainter extends CustomPainter {
     final h = size.height - pad * 2;
     final origin = Offset(pad, pad);
 
-    // max
     double maxY = 1.0;
     for (final v in [...me, ...opp]) {
       if (v > maxY) maxY = v;
@@ -497,7 +482,6 @@ class _DualLinePainter extends CustomPainter {
       return origin.dy + h * (1 - t);
     }
 
-    // Rahmen + horizontale Rasterlinien (4)
     final axis = Paint()
       ..color = gridColor
       ..style = PaintingStyle.stroke
@@ -512,13 +496,11 @@ class _DualLinePainter extends CustomPainter {
       canvas.drawLine(Offset(origin.dx, y), Offset(origin.dx + w, y), grid);
     }
 
-    // x mapping
     double xFor(int i, int n) {
       final denom = (n - 1 == 0) ? 1 : (n - 1);
       return origin.dx + w * (i / denom);
     }
 
-    // Linien
     void drawSeries(List<double> d, Color c) {
       if (d.isEmpty) return;
       final path = Path();
@@ -587,140 +569,6 @@ class _Legend extends StatelessWidget {
             ),
           )
           .toList(),
-    );
-  }
-}
-
-/// Stylischer, animierter Theme-Toggle (Sun/Moon + gleitender Knopf)
-class _ThemeModeToggle extends StatefulWidget {
-  final bool isDark;
-  final VoidCallback onToggle;
-  const _ThemeModeToggle({
-    required this.isDark,
-    required this.onToggle,
-  });
-
-  @override
-  State<_ThemeModeToggle> createState() => _ThemeModeToggleState();
-}
-
-class _ThemeModeToggleState extends State<_ThemeModeToggle>
-    with SingleTickerProviderStateMixin {
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final bool isDark = widget.isDark;
-
-    // Größen
-    const double width = 64;
-    const double height = 34;
-    const double padding = 4;
-    const double knob = height - padding * 2;
-
-    return Semantics(
-      label: 'Theme umschalten',
-      value: isDark ? 'Darkmode aktiv' : 'Lightmode aktiv',
-      button: true,
-      child: GestureDetector(
-        onTap: widget.onToggle,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 240),
-          curve: Curves.easeOutCubic,
-          width: width,
-          height: height,
-          padding: const EdgeInsets.all(padding),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(height),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: isDark
-                  ? [
-                      scheme.primaryContainer.withOpacity(0.25),
-                      scheme.primary.withOpacity(0.35),
-                    ]
-                  : [
-                      scheme.tertiaryContainer.withOpacity(0.5),
-                      scheme.surfaceContainerHighest.withOpacity(0.9),
-                    ],
-            ),
-            border: Border.all(
-              color: isDark ? scheme.primary.withOpacity(0.4) : scheme.outlineVariant,
-            ),
-            boxShadow: [
-              BoxShadow(
-                blurRadius: 10,
-                spreadRadius: 0,
-                offset: const Offset(0, 4),
-                color: Colors.black.withOpacity(isDark ? 0.25 : 0.12),
-              ),
-            ],
-          ),
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Padding(
-                  padding: const EdgeInsets.only(left: 8),
-                  child: Icon(
-                    Icons.wb_sunny_rounded,
-                    size: 16,
-                    color: isDark
-                        ? scheme.onSurface.withOpacity(0.35)
-                        : scheme.onSurface.withOpacity(0.9),
-                  ),
-                ),
-              ),
-              Align(
-                alignment: Alignment.centerRight,
-                child: Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: Icon(
-                    Icons.nights_stay_rounded,
-                    size: 16,
-                    color: isDark
-                        ? scheme.onSurface.withOpacity(0.9)
-                        : scheme.onSurface.withOpacity(0.35),
-                  ),
-                ),
-              ),
-              AnimatedAlign(
-                duration: const Duration(milliseconds: 240),
-                curve: Curves.easeOutCubic,
-                alignment: isDark ? Alignment.centerRight : Alignment.centerLeft,
-                child: Container(
-                  width: knob,
-                  height: knob,
-                  decoration: BoxDecoration(
-                    color: scheme.surface,
-                    borderRadius: BorderRadius.circular(knob / 2),
-                    boxShadow: [
-                      BoxShadow(
-                        blurRadius: 6,
-                        offset: const Offset(0, 2),
-                        color: Colors.black.withOpacity(0.25),
-                      ),
-                    ],
-                    border: Border.all(color: scheme.outlineVariant),
-                  ),
-                  child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 180),
-                    switchInCurve: Curves.easeOut,
-                    switchOutCurve: Curves.easeIn,
-                    child: Icon(
-                      isDark ? Icons.dark_mode : Icons.light_mode,
-                      key: ValueKey(isDark),
-                      size: 16,
-                      color: scheme.primary,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }

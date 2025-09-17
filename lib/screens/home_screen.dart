@@ -3,8 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../state/app_state.dart';
 import '../state/theme_provider.dart';
-import '../models/models.dart'; // für Winner
+import '../models/models.dart';
 import 'session_detail_screen.dart';
+import '../l10n/generated/app_localizations.dart';
 
 class HomeScreen extends StatelessWidget {
   final VoidCallback? onStartNewSession; // Callback aus app.dart
@@ -13,8 +14,8 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
-    final themeProvider = context.watch<ThemeProvider>();
-    final isDark = themeProvider.themeMode == ThemeMode.dark;
+    context.watch<ThemeProvider>(); // damit Theme-Wechsel den Screen neu baut
+    final loc = AppLocalizations.of(context)!;
 
     // Neueste 3 Sessions
     final recent = [...state.sessions]..sort((a, b) => b.startedAt.compareTo(a.startedAt));
@@ -42,19 +43,10 @@ class HomeScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: scheme.secondaryContainer, // abgesetzter Hintergrund
+        backgroundColor: scheme.secondaryContainer,
         foregroundColor: scheme.onSurfaceVariant,
         elevation: 0,
-        title: Text('Willkommen', style: textTheme.headlineSmall),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 12, bottom: 6),
-            child: _ThemeModeToggle(
-              isDark: isDark,
-              onToggle: () => context.read<ThemeProvider>().toggleTheme(),
-            ),
-          ),
-        ],
+        title: Text(loc.welcome, style: textTheme.headlineSmall),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(24),
           child: Align(
@@ -63,8 +55,8 @@ class HomeScreen extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
               child: Text(
                 state.user != null
-                    ? 'Angemeldet als ${state.user!.name} ${state.user!.avatar}'
-                    : 'Lege dein Profil unter „Spieler“ an.',
+                    ? loc.signedInAs(state.user!.name, state.user!.avatar)
+                    : loc.createProfileHint,
                 style: textTheme.bodyMedium?.copyWith(
                   color: scheme.onSurfaceVariant,
                 ),
@@ -87,12 +79,12 @@ class HomeScreen extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Meine Win-Rate', style: textTheme.titleMedium),
+                        Text(loc.winRate, style: textTheme.titleMedium),
                         const SizedBox(height: 6),
                         Text(
                           totalGames == 0
-                              ? 'Noch keine Spiele'
-                              : '${winRate.toStringAsFixed(1)} %   •   $winsMe von $totalGames gewonnen',
+                              ? loc.noGamesYet
+                              : '${winRate.toStringAsFixed(1)} %   •   ${loc.winRateDetail(winsMe, totalGames)}',
                           style: textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
                         ),
                         const SizedBox(height: 10),
@@ -135,12 +127,12 @@ class HomeScreen extends StatelessWidget {
 
           // ---- Zuletzt gestartet ----
           if (lastThree.isNotEmpty) ...[
-            Text('Zuletzt gestartet', style: textTheme.titleLarge),
+            Text(loc.recentSessions, style: textTheme.titleLarge),
             const SizedBox(height: 8),
             for (final s in lastThree)
               Card(
                 child: ListTile(
-                  title: Text('Session • ${state.formatDate(s.startedAt)}'),
+                  title: Text('${loc.session} • ${state.formatDate(s.startedAt)}'),
                   subtitle: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -151,10 +143,10 @@ class HomeScreen extends StatelessWidget {
                       ),
                       const SizedBox(width: 6),
                       Text(
-                        'Gegner: ${(() {
+                        loc.opponentName(() {
                           final match = state.opponents.where((o) => o.id == s.opponentId);
                           return match.isNotEmpty ? match.first.name : '—';
-                        })()}',
+                        }()),
                       ),
                     ],
                   ),
@@ -173,11 +165,11 @@ class HomeScreen extends StatelessWidget {
             const SizedBox(height: 8),
           ],
 
-          // ---- Neue Session Starten (JETZT NACH der Zuletzt-Sektion) ----
+          // ---- Neue Session Starten (nach der Zuletzt-Sektion) ----
           FilledButton.icon(
             onPressed: state.opponents.isEmpty ? null : onStartNewSession,
             icon: const Icon(Icons.play_circle_fill_rounded),
-            label: const Text('Neue Session starten'),
+            label: Text(loc.newSession),
           ),
           const SizedBox(height: 16),
 
@@ -188,7 +180,7 @@ class HomeScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Fortschritt', style: textTheme.titleMedium),
+                  Text(loc.progress, style: textTheme.titleMedium),
                   const SizedBox(height: 8),
                   Row(
                     children: [
@@ -209,7 +201,7 @@ class HomeScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    'Gespielte Spiele gesamt: $totalGames',
+                    loc.totalGamesPlayed(totalGames),
                     style: textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
                   ),
                 ],
@@ -254,8 +246,7 @@ class _DiceWidgetState extends State<_DiceWidget> with SingleTickerProviderState
     super.dispose();
   }
 
-  void _roll() async {
-    // kleine „Shake-/Spin“-Animation
+  void _roll() {
     _ctrl.forward(from: 0);
     setState(() {
       _a = _rand.nextInt(6) + 1;
@@ -267,6 +258,7 @@ class _DiceWidgetState extends State<_DiceWidget> with SingleTickerProviderState
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
+    final loc = AppLocalizations.of(context)!;
 
     return Card(
       child: Padding(
@@ -274,7 +266,7 @@ class _DiceWidgetState extends State<_DiceWidget> with SingleTickerProviderState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Würfeln', style: text.titleMedium),
+            Text(loc.dice, style: text.titleMedium),
             const SizedBox(height: 8),
             Row(
               children: [
@@ -282,7 +274,6 @@ class _DiceWidgetState extends State<_DiceWidget> with SingleTickerProviderState
                   child: AnimatedBuilder(
                     animation: _spin,
                     builder: (_, child) {
-                      // leichter Spin + Scale beim Würfeln
                       final angle = _spin.value * 2 * pi;
                       final scale = 1.0 + 0.08 * (_spin.value < 0.5 ? _spin.value * 2 : (1 - _spin.value) * 2);
                       return Transform.rotate(
@@ -306,13 +297,13 @@ class _DiceWidgetState extends State<_DiceWidget> with SingleTickerProviderState
                 FilledButton.icon(
                   onPressed: _roll,
                   icon: const Icon(Icons.casino),
-                  label: const Text('Werfen'),
+                  label: Text(loc.roll),
                 ),
               ],
             ),
             const SizedBox(height: 6),
             Text(
-              'Summe: ${_a + _b}',
+              loc.sumWithNumber(_a + _b),
               style: text.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
             ),
           ],
@@ -339,150 +330,8 @@ class _DieFace extends StatelessWidget {
       ),
       alignment: Alignment.center,
       child: Text(
-        // Unicode Dice: 1..6 -> \u2680..\u2685
-        String.fromCharCode(0x2680 + (value - 1)),
+        String.fromCharCode(0x2680 + (value - 1)), // Unicode Dice
         style: const TextStyle(fontSize: 28),
-      ),
-    );
-  }
-}
-
-/// Stylischer, animierter Theme-Toggle (Sun/Moon + gleitender Knopf)
-class _ThemeModeToggle extends StatefulWidget {
-  final bool isDark;
-  final VoidCallback onToggle;
-  const _ThemeModeToggle({
-    required this.isDark,
-    required this.onToggle,
-  });
-
-  @override
-  State<_ThemeModeToggle> createState() => _ThemeModeToggleState();
-}
-
-class _ThemeModeToggleState extends State<_ThemeModeToggle>
-    with SingleTickerProviderStateMixin {
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final bool isDark = widget.isDark;
-
-    // Größen
-    const double width = 64;
-    const double height = 34;
-    const double padding = 4;
-    const double knob = height - padding * 2;
-
-    return Semantics(
-      label: 'Theme umschalten',
-      value: isDark ? 'Darkmode aktiv' : 'Lightmode aktiv',
-      button: true,
-      child: GestureDetector(
-        onTap: widget.onToggle,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 240),
-          curve: Curves.easeOutCubic,
-          width: width,
-          height: height,
-          padding: const EdgeInsets.all(padding),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(height),
-            // sanfter Verlauf je nach Modus
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: isDark
-                  ? [
-                      scheme.primaryContainer.withOpacity(0.25),
-                      scheme.primary.withOpacity(0.35),
-                    ]
-                  : [
-                      scheme.tertiaryContainer.withOpacity(0.5),
-                      scheme.surfaceContainerHighest.withOpacity(0.9),
-                    ],
-            ),
-            border: Border.all(
-              color: isDark
-                  ? scheme.primary.withOpacity(0.4)
-                  : scheme.outlineVariant,
-            ),
-            boxShadow: [
-              BoxShadow(
-                blurRadius: 10,
-                spreadRadius: 0,
-                offset: const Offset(0, 4),
-                color: Colors.black.withOpacity(isDark ? 0.25 : 0.12),
-              ),
-            ],
-          ),
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              // Sun/Moon Icons im Hintergrund
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Padding(
-                  padding: const EdgeInsets.only(left: 8),
-                  child: Icon(
-                    Icons.wb_sunny_rounded,
-                    size: 16,
-                    color: isDark
-                        ? scheme.onSurface.withOpacity(0.35)
-                        : scheme.onSurface.withOpacity(0.9),
-                  ),
-                ),
-              ),
-              Align(
-                alignment: Alignment.centerRight,
-                child: Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: Icon(
-                    Icons.nights_stay_rounded,
-                    size: 16,
-                    color: isDark
-                        ? scheme.onSurface.withOpacity(0.9)
-                        : scheme.onSurface.withOpacity(0.35),
-                  ),
-                ),
-              ),
-
-              // Knopf
-              AnimatedAlign(
-                duration: const Duration(milliseconds: 240),
-                curve: Curves.easeOutCubic,
-                alignment:
-                    isDark ? Alignment.centerRight : Alignment.centerLeft,
-                child: Container(
-                  width: knob,
-                  height: knob,
-                  decoration: BoxDecoration(
-                    color: scheme.surface,
-                    borderRadius: BorderRadius.circular(knob / 2),
-                    boxShadow: [
-                      BoxShadow(
-                        blurRadius: 6,
-                        offset: const Offset(0, 2),
-                        color: Colors.black.withOpacity(0.25),
-                      ),
-                    ],
-                    border: Border.all(color: scheme.outlineVariant),
-                  ),
-                  child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 180),
-                    switchInCurve: Curves.easeOut,
-                    switchOutCurve: Curves.easeIn,
-                    child: Icon(
-                      isDark ? Icons.dark_mode : Icons.light_mode,
-                      key: ValueKey(isDark),
-                      size: 16,
-                      color: scheme.primary,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }

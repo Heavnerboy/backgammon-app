@@ -18,20 +18,16 @@ class SessionListItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
 
-    // Totals bestimmen
     final myTotal  = state.sessionMyTotal(session.id);
     final oppTotal = state.sessionOppTotal(session.id);
 
     final didWin  = myTotal > oppTotal;
     final didLose = myTotal < oppTotal;
-
-    // Schräges „Trend“-Icon in GRAU
     final IconData icon = didWin
         ? Icons.trending_up
         : (didLose ? Icons.trending_down : Icons.trending_flat);
     final Color iconColor = Theme.of(context).colorScheme.onSurfaceVariant;
 
-    // Letztes Game (für Siegart + Würfel)
     final games = state.gamesForSession(session.id)
       ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
     final Game? lastGame = games.isNotEmpty ? games.last : null;
@@ -40,8 +36,6 @@ class SessionListItem extends StatelessWidget {
         ? '—'
         : state.labelForWinKind(lastGame.winKind); // Single/Gammon/Backgammon
     final int cubeVal = lastGame?.cube ?? 1;
-
-    // Datum: dd.MM.yy
     final String dateStr = state.formatDate(session.startedAt);
 
     return ListTile(

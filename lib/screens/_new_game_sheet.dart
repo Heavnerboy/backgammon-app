@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../state/app_state.dart';
 import '../models/models.dart';
 import '../widgets/doubling_cube.dart';
+import '../l10n/generated/app_localizations.dart';
 
 class NewGameSheet extends StatefulWidget {
   final String sessionId;
@@ -20,15 +22,16 @@ class _NewGameSheetState extends State<NewGameSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
     final state = context.watch<AppState>();
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
     final session = state.sessions.firstWhere((s) => s.id == widget.sessionId);
-    final myName = state.user?.name ?? 'Ich';
+    final myName = state.user?.name ?? l.me;
     final oppName = (() {
       final match = state.opponents.where((o) => o.id == session.opponentId);
-      return match.isNotEmpty ? match.first.name : 'Gegner';
+      return match.isNotEmpty ? match.first.name : l.opponent;
     })();
 
     return SafeArea(
@@ -43,7 +46,7 @@ class _NewGameSheetState extends State<NewGameSheet> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // 🔹 Sheet-Header im M3-Stil (Dark-Mode-freundlich)
+            // Sheet-Header
             Container(
               width: double.infinity,
               decoration: BoxDecoration(
@@ -52,16 +55,15 @@ class _NewGameSheetState extends State<NewGameSheet> {
               ),
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Text(
-                'Neues Spiel',
+                l.newGameTitle,
                 style: textTheme.titleMedium?.copyWith(color: scheme.onSecondaryContainer),
               ),
             ),
             const SizedBox(height: 12),
 
-            // Gewinner mit echten Namen
             DropdownButtonFormField<Winner>(
               value: _winner,
-              decoration: const InputDecoration(labelText: 'Gewinner'),
+              decoration: InputDecoration(labelText: l.winnerLabel),
               items: [
                 DropdownMenuItem(value: Winner.me, child: Text(myName)),
                 DropdownMenuItem(value: Winner.opponent, child: Text(oppName)),
@@ -70,28 +72,28 @@ class _NewGameSheetState extends State<NewGameSheet> {
             ),
             const SizedBox(height: 12),
 
-            // Siegart
             DropdownButtonFormField<WinKind>(
               value: _winKind,
-              decoration: const InputDecoration(labelText: 'Siegart'),
-              items: const [
-                DropdownMenuItem(value: WinKind.single, child: Text('Single')),
-                DropdownMenuItem(value: WinKind.gammon, child: Text('Gammon')),
-                DropdownMenuItem(value: WinKind.backgammon, child: Text('Backgammon')),
-                DropdownMenuItem(value: WinKind.passDouble, child: Text('Doppelung abgelehnt')),
+              decoration: InputDecoration(labelText: l.winTypeLabel),
+              items: [
+                DropdownMenuItem(value: WinKind.single, child: Text(l.winKindSingle)),
+                DropdownMenuItem(value: WinKind.gammon, child: Text(l.winKindGammon)),
+                DropdownMenuItem(value: WinKind.backgammon, child: Text(l.winKindBackgammon)),
+                DropdownMenuItem(value: WinKind.passDouble, child: Text(l.winKindPassDouble)),
               ],
               onChanged: (v) => setState(() => _winKind = v ?? WinKind.single),
             ),
             const SizedBox(height: 12),
 
-            // Verdopplungswürfel
             Row(
               children: [
                 Expanded(
                   child: DropdownButtonFormField<int>(
                     value: _cube,
-                    decoration: const InputDecoration(labelText: 'Verdopplungswürfel'),
-                    items: _cubeOptions.map((v) => DropdownMenuItem(value: v, child: Text('$v'))).toList(),
+                    decoration: InputDecoration(labelText: l.doublingDieLabel),
+                    items: _cubeOptions
+                        .map((v) => DropdownMenuItem(value: v, child: Text('$v')))
+                        .toList(),
                     onChanged: (v) => setState(() => _cube = v ?? 1),
                   ),
                 ),
@@ -102,10 +104,9 @@ class _NewGameSheetState extends State<NewGameSheet> {
 
             const SizedBox(height: 16),
 
-            // Aktion
             FilledButton.icon(
               icon: const Icon(Icons.add),
-              label: const Text('Spiel hinzufügen'),
+              label: Text(l.addGameFab),
               onPressed: () {
                 state.addGameScored(
                   sessionId: widget.sessionId,
