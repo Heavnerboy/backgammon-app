@@ -4,6 +4,7 @@ import '../state/app_state.dart';
 import '../widgets/avatar_with_name.dart';
 import '../models/models.dart';
 import 'session_detail_screen.dart';
+import '../l10n/generated/app_localizations.dart';
 
 class SessionsScreen extends StatefulWidget {
   const SessionsScreen({super.key});
@@ -19,20 +20,20 @@ class _SessionsScreenState extends State<SessionsScreen> {
     final state = context.watch<AppState>();
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
+    final loc = AppLocalizations.of(context)!;
 
     final UserProfile? me = state.user;
 
-    // ✅ Gegner sicher als Opponent? ermitteln (ohne orElse-Nullproblem)
-    final Opponent? opp = (_selectedOpponentId == null)
-        ? null
-        : (() {
-            for (final o in state.opponents) {
-              if (o.id == _selectedOpponentId) return o;
-            }
-            return null; // nichts gefunden
-          })();
+    Opponent? opp;
+    if (_selectedOpponentId != null) {
+      for (final o in state.opponents) {
+        if (o.id == _selectedOpponentId) {
+          opp = o;
+          break;
+        }
+      }
+    }
 
-    // Filter + Sort
     final filtered = state.sessions
         .where((s) => _selectedOpponentId != null && s.opponentId == _selectedOpponentId)
         .toList()
@@ -46,17 +47,23 @@ class _SessionsScreenState extends State<SessionsScreen> {
       return Icons.trending_flat;
     }
 
+    String _opponentNameById(String id) {
+      for (final o in state.opponents) {
+        if (o.id == id) return o.name;
+      }
+      return '—';
+    }
+
     return Scaffold(
       appBar: AppBar(
         backgroundColor: scheme.secondaryContainer,
         foregroundColor: scheme.onSecondaryContainer,
         elevation: 0,
-        title: Text('Sessions', style: textTheme.headlineSmall?.copyWith(color: scheme.onSecondaryContainer)),
+        title: Text(loc.navSessions, style: textTheme.headlineSmall?.copyWith(color: scheme.onSecondaryContainer)),
       ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
         children: [
-          // VS-Sektion
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
@@ -78,13 +85,12 @@ class _SessionsScreenState extends State<SessionsScreen> {
 
           const SizedBox(height: 16),
 
-          // Gegnerauswahl + neue Session
           Row(
             children: [
               Expanded(
                 child: DropdownButtonFormField<String>(
                   value: _selectedOpponentId,
-                  decoration: const InputDecoration(labelText: 'Gegner'),
+                  decoration: InputDecoration(labelText: loc.opponentLabel),
                   items: state.opponents
                       .map((o) => DropdownMenuItem(value: o.id, child: Text('${o.avatar}  ${o.name}')))
                       .toList(),
@@ -102,7 +108,7 @@ class _SessionsScreenState extends State<SessionsScreen> {
                           MaterialPageRoute(builder: (_) => SessionDetailScreen(sessionId: sessionId)),
                         );
                       },
-                child: const Text('Neue Session'),
+                child: Text(loc.newSessionShort),
               ),
             ],
           ),
@@ -112,23 +118,23 @@ class _SessionsScreenState extends State<SessionsScreen> {
           const SizedBox(height: 12),
 
           if (state.opponents.isEmpty)
-            const Center(child: Text('Lege zuerst einen Gegner unter „Spieler“ an.'))
+            Center(child: Text(loc.createOpponentHint))
           else if (_selectedOpponentId == null)
-            const Center(child: Text('Bitte Gegner auswählen.'))
+            Center(child: Text(loc.pleaseSelectOpponent))
           else if (filtered.isEmpty)
-            const Center(child: Text('Keine Sessions mit diesem Gegner.'))
+            Center(child: Text(loc.noSessionsWithOpponent))
           else
             ...[
               for (final s in filtered)
                 Card(
                   child: ListTile(
-                    title: Text('Session • ${state.formatDate(s.startedAt)}'),
+                    title: Text(loc.sessionWithDate(state.formatDate(s.startedAt))),
                     subtitle: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(_trendIcon(s.id), color: scheme.onSurfaceVariant, size: 20),
                         const SizedBox(width: 6),
-                        Text('Gegner: ${state.opponents.firstWhere((o) => o.id == s.opponentId).name}'),
+                        Text(loc.opponentName(_opponentNameById(s.opponentId))),
                       ],
                     ),
                     trailing: Text(
@@ -147,8 +153,6 @@ class _SessionsScreenState extends State<SessionsScreen> {
     );
   }
 }
-
-// ------- kleine, eigenständige UI-Bausteine -------
 
 class _VsChip extends StatelessWidget {
   const _VsChip();

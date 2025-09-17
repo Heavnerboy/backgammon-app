@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../models/models.dart';
 import '../state/app_state.dart';
 import '../widgets/doubling_cube.dart';
+import '../l10n/generated/app_localizations.dart';
 
 class NewSessionSheet extends StatefulWidget {
   final Opponent opponent;
@@ -13,14 +15,13 @@ class NewSessionSheet extends StatefulWidget {
 }
 
 class _NewSessionSheetState extends State<NewSessionSheet> {
-  // Du hattest den Rest schon umgesetzt – hier nur Minimalbeispiel
-  // Wenn du die Dropdowns (Siegart/Würfel) bereits in einer anderen Datei hast, kannst du dieses Sheet weglassen.
   WinKind _winKind = WinKind.single;
   int _cube = 1;
   static const _cubeOptions = [1, 2, 4, 8, 16, 32, 64];
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
     final state = context.watch<AppState>();
 
     return Padding(
@@ -33,18 +34,20 @@ class _NewSessionSheetState extends State<NewSessionSheet> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text('Session gegen ${widget.opponent.name}',
-              style: Theme.of(context).textTheme.titleMedium),
+          Text(
+            l.sessionAgainstName(widget.opponent.name),
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
           const SizedBox(height: 12),
 
-          // Siegart (nur Single/Gammon/Backgammon)
+          // Siegart
           DropdownButtonFormField<WinKind>(
             value: _winKind,
-            decoration: const InputDecoration(labelText: 'Siegart'),
-            items: const [
-              DropdownMenuItem(value: WinKind.single, child: Text('Single')),
-              DropdownMenuItem(value: WinKind.gammon, child: Text('Gammon')),
-              DropdownMenuItem(value: WinKind.backgammon, child: Text('Backgammon')),
+            decoration: InputDecoration(labelText: l.winTypeLabel),
+            items: [
+              DropdownMenuItem(value: WinKind.single, child: Text(l.winKindSingle)),
+              DropdownMenuItem(value: WinKind.gammon, child: Text(l.winKindGammon)),
+              DropdownMenuItem(value: WinKind.backgammon, child: Text(l.winKindBackgammon)),
             ],
             onChanged: (v) => setState(() {
               if (v != null) _winKind = v;
@@ -52,13 +55,13 @@ class _NewSessionSheetState extends State<NewSessionSheet> {
           ),
           const SizedBox(height: 12),
 
-          // Würfel (nur Zahlen)
+          // Verdopplungswürfel
           Row(
             children: [
               Expanded(
                 child: DropdownButtonFormField<int>(
                   value: _cube,
-                  decoration: const InputDecoration(labelText: 'Verdoppelung'),
+                  decoration: InputDecoration(labelText: l.doublingLabel),
                   items: _cubeOptions
                       .map((v) => DropdownMenuItem(value: v, child: Text('$v')))
                       .toList(),
@@ -74,23 +77,22 @@ class _NewSessionSheetState extends State<NewSessionSheet> {
 
           const SizedBox(height: 16),
           FilledButton.icon(
-            icon: const Icon(Icons.save),
+            icon: const Icon(Icons.save_outlined),
             onPressed: () {
               // 1) Session anlegen
               final sessionId = state.newSession(widget.opponent.id);
 
-              // 2) Sofort ein Game erfassen (optional — falls du das so möchtest)
-              //    Oder diesen Schritt entfernen, wenn du Games separat erfasst.
+              // 2) Optional direkt erstes Spiel erfassen
               state.addGameScored(
                 sessionId: sessionId,
-                winner: Winner.me, // oder Winner.opponent – nach Bedarf anpassen
+                winner: Winner.me, // ggf. anpassen
                 winKind: _winKind,
                 cube: _cube,
               );
 
               Navigator.pop(context);
             },
-            label: const Text('Speichern'),
+            label: Text(l.save),
           ),
           const SizedBox(height: 8),
         ],
